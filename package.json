@@ -9,7 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "@clerk/nextjs": "5.32.1",
+    "@clerk/nextjs": "6.37.3",
     "@hookform/resolvers": "5.2.2",
     "@inngest/agent-kit": "0.13.2",
     "@neondatabase/serverless": "1.0.2",
@@ -66,7 +66,7 @@
     "react-day-picker": "9.4.1",
     "react-dom": "18.3.1",
     "react-dropzone": "14.3.5",
-    "react-hook-form": "7.53.1",
+    "react-hook-form": "^7.55.0",
     "react-katex": "^3.1.0",
     "react-markdown": "9.0.1",
     "react-resizable-panels": "2.1.4",
