@@ -4,6 +4,7 @@ import { useState } from "react";
 import { SignInButton, SignUpButton, SignedIn, SignedOut, useClerk, UserButton } from "@clerk/nextjs";
 import { FileText, Map, MessageCircle, FileEdit, ArrowRight, Mail, Linkedin, Github } from "lucide-react";
 import Link from "next/link";
+import ShapeGrid from "@/components/ShapeGrid";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -96,8 +97,20 @@ export default function Home() {
 
       {/* Hero Section */}
       <main className="flex-1 pt-[128px] relative overflow-hidden">
+        <div className="absolute inset-0 z-0 pointer-events-none">
+          <ShapeGrid
+            speed={0.45}
+            squareSize={42}
+            direction="diagonal"
+            borderColor="rgba(118, 169, 226, 0.09)"
+            hoverFillColor="rgba(56, 189, 248, 0.24)"
+            shape="square"
+            hoverTrailAmount={5}
+            className="opacity-90"
+          />
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(30,64,175,0.12),rgba(2,6,23,0.36)_72%)]" />
+        </div>
         <section className="px-6 pb-12 relative z-10 pt-3 md:pt-6">
-          <div className="pointer-events-none absolute left-1/2 top-6 -z-10 h-80 w-[min(72rem,90vw)] -translate-x-1/2 rounded-full bg-[radial-gradient(circle_at_center,rgba(59,130,246,0.18),transparent_68%)] blur-3xl" />
           <div className="max-w-7xl mx-auto text-center">
             <h2 className="text-6xl md:text-8xl font-black text-white tracking-tight leading-[1.1] mb-6">
               Empower Your Learning with <br />
@@ -136,16 +149,6 @@ export default function Home() {
 
           </div>
         </section>
-
-        {/* Dynamic Background Elements */}
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-full pointer-events-none overflow-hidden -z-10">
-          <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] bg-blue-600/14 blur-[150px] rounded-full animate-pulse"></div>
-          <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-purple-600/12 blur-[150px] rounded-full"></div>
-          <div className="absolute top-[30%] right-[10%] w-[30%] h-[30%] bg-cyan-600/8 blur-[120px] rounded-full"></div>
-
-          {/* Subtle Grid Pattern */}
-          <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:40px_40px] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)]"></div>
-        </div>
       </main>
 {/*Here's Your Previous Footer. I have just commented it in case */}
       {/* Footer
