@@ -1,10 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { X, Loader2, Upload, File, Eye, EyeOff, Bold, Italic, Code, List, Tags, Sparkles, FileText, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import MarkdownRenderer from "./MarkdownRenderer";
-import { useRef } from "react";
 
 interface AskDoubtProps {
     defaultSubject?: string;
@@ -15,6 +14,8 @@ interface AskDoubtProps {
     classroomId?: number | null;
     type?: string;
 }
+
+const MAX_CHARS = 500;
 
 const SUBJECT_KEYWORDS: Record<string, string[]> = {
     Calculus: ["derivative", "integral", "limit", "differentiation", "maxima", "minima"],
@@ -57,6 +58,15 @@ const suggestTags = (text: string, subject: string) => {
  */
 export default function AskDoubt({ defaultSubject = "", isOpen, onClose, onSuccess, doubtToEdit, classroomId = null, type = 'community' }: AskDoubtProps) {
     const [content, setContent] = useState(doubtToEdit?.content || "");
+
+    const charCount = content.length;
+    const isOverLimit = charCount > MAX_CHARS;
+    const isNearLimit = charCount >= MAX_CHARS * 0.8;
+    const charCountColor = isOverLimit || charCount === MAX_CHARS
+        ? "text-red-500"
+        : isNearLimit
+            ? "text-yellow-400"
+            : "text-slate-400";
     const [subject, setSubject] = useState(doubtToEdit?.subject || defaultSubject);
     const [imageUrl, setImageUrl] = useState(doubtToEdit?.imageUrl || "");
     const [fileName, setFileName] = useState(
@@ -65,13 +75,49 @@ export default function AskDoubt({ defaultSubject = "", isOpen, onClose, onSucce
     const [fileSize, setFileSize] = useState("");
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [userName, setUserName] = useState("");
-    const [isPreviewMode, setIsPreviewMode] = useState(false);
-    const contentTextareaRef = useRef<HTMLTextAreaElement>(null);
     const [tags, setTags] = useState<string[]>(doubtToEdit?.tags?.map((tag: any) => tag.name) || []);
     const [tagDraft, setTagDraft] = useState("");
     const [subjectWasEdited, setSubjectWasEdited] = useState(false);
     const [suggestedSubject, setSuggestedSubject] = useState("");
     const [isDragging, setIsDragging] = useState(false);
+    const [isPreviewMode, setIsPreviewMode] = useState(false);
+    const contentTextareaRef = useRef<HTMLTextAreaElement>(null);
+
+    const insertMarkdown = (type: "bold" | "italic" | "code" | "list") => {
+        const textarea = contentTextareaRef.current;
+        if (!textarea) return;
+
+        const start = textarea.selectionStart;
+        const end = textarea.selectionEnd;
+        const text = textarea.value;
+        const selectedText = text.substring(start, end);
+
+        let replacement = "";
+        switch (type) {
+            case "bold":
+                replacement = `**${selectedText || "bold text"}**`;
+                break;
+            case "italic":
+                replacement = `*${selectedText || "italic text"}*`;
+                break;
+            case "code":
+                replacement = `\`${selectedText || "code"}\``;
+                break;
+            case "list":
+                replacement = `\n- ${selectedText || "list item"}`;
+                break;
+        }
+
+        const newContent = text.substring(0, start) + replacement + text.substring(end);
+        setContent(newContent);
+
+        // Reset cursor pos and focus
+        setTimeout(() => {
+            textarea.focus();
+            const newCursorPos = start + replacement.length;
+            textarea.setSelectionRange(newCursorPos, newCursorPos);
+        }, 0);
+    };
 
     useEffect(() => {
         if (doubtToEdit) {
@@ -119,32 +165,6 @@ export default function AskDoubt({ defaultSubject = "", isOpen, onClose, onSucce
         }
         setUserName(savedName);
     }, []);
-
-    const insertMarkdown = (type: string) => {
-        const textarea = contentTextareaRef.current;
-        if (!textarea) return;
-
-        const start = textarea.selectionStart;
-        const end = textarea.selectionEnd;
-        const text = textarea.value;
-        const selectedText = text.substring(start, end);
-        let replacement = "";
-
-        switch (type) {
-            case "bold": replacement = `**${selectedText || "bold text"}**`; break;
-            case "italic": replacement = `*${selectedText || "italic text"}*`; break;
-            case "code": replacement = `\`\`\`\n${selectedText || "code"}\n\`\`\``; break;
-            case "list": replacement = `\n- ${selectedText || "list item"}`; break;
-        }
-
-        const newText = text.substring(0, start) + replacement + text.substring(end);
-        setContent(newText);
-        
-        setTimeout(() => {
-            textarea.focus();
-            textarea.setSelectionRange(start + replacement.length, start + replacement.length);
-        }, 0);
-    };
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -198,6 +218,10 @@ export default function AskDoubt({ defaultSubject = "", isOpen, onClose, onSucce
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (isOverLimit) {
+            toast.error(`Character limit exceeded (${MAX_CHARS})`);
+            return;
+        }
         if ((!content.trim() && !imageUrl) || !subject.trim()) return;
 
         setIsSubmitting(true);
@@ -239,20 +263,20 @@ export default function AskDoubt({ defaultSubject = "", isOpen, onClose, onSucce
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm">
-            <div className="bg-slate-900 border border-white/10 rounded-[2.5rem] w-full max-w-2xl overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200">
-                <div className="p-8 border-b border-white/5 flex items-center justify-between bg-white/[0.02]">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-white/60 dark:bg-slate-950/60 backdrop-blur-sm">
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-[2.5rem] w-full max-w-2xl overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200">
+                <div className="p-8 border-b border-slate-200 dark:border-white/5 flex items-center justify-between bg-white/[0.02]">
                     <div>
-                        <h2 className="text-2xl font-black text-white tracking-tight uppercase italic">
+                        <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight uppercase italic">
                             {doubtToEdit ? "Edit" : "Ask"} {type === 'teacher' ? <span className="text-purple-500">Teacher</span> : <span className="text-blue-500">Doubt</span>}
                         </h2>
-                        <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest mt-1">
+                        <p className="text-slate-500 dark:text-slate-500 text-[10px] font-black uppercase tracking-widest mt-1">
                             Collaborative • Anonymous • {userName}
                         </p>
                     </div>
                     <button 
                         onClick={onClose}
-                        className="p-2 hover:bg-white/5 rounded-full text-slate-400 transition-colors"
+                        className="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-full text-slate-600 dark:text-slate-400 transition-colors"
                         aria-label="Close modal"
                     >
                         <X className="w-6 h-6" />
@@ -261,7 +285,7 @@ export default function AskDoubt({ defaultSubject = "", isOpen, onClose, onSucce
 
                 <form onSubmit={handleSubmit} className="p-8 space-y-6 max-h-[80vh] overflow-y-auto">
                     <div className="space-y-2">
-                        <label className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-500 px-1">Subject / Topic</label>
+                        <label className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-500 dark:text-slate-500 px-1">Subject / Topic</label>
                         <input
                             type="text"
                             value={subject}
@@ -270,7 +294,7 @@ export default function AskDoubt({ defaultSubject = "", isOpen, onClose, onSucce
                                 setSubjectWasEdited(true);
                             }}
                             placeholder="e.g. Quantum Mechanics, React Hooks, etc."
-                            className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-white focus:outline-none focus:border-blue-500/50 font-bold text-sm"
+                            className="w-full bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl p-4 text-slate-900 dark:text-white focus:outline-none focus:border-blue-500/50 font-bold text-sm"
                             required
                         />
                         {suggestedSubject && (
@@ -293,13 +317,13 @@ export default function AskDoubt({ defaultSubject = "", isOpen, onClose, onSucce
 
                     <div className="space-y-2">
                         <div className="flex items-center justify-between px-1">
-                            <label className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-500">Your Question (Optional if attachment added)</label>
+                            <label className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-500 dark:text-slate-500">Your Question (Optional if attachment added)</label>
                             <div className="flex items-center gap-1">
-                                <button type="button" onClick={() => insertMarkdown("bold")} className="p-1.5 hover:bg-white/10 rounded text-slate-400"><Bold className="w-3 h-3" /></button>
-                                <button type="button" onClick={() => insertMarkdown("italic")} className="p-1.5 hover:bg-white/10 rounded text-slate-400"><Italic className="w-3 h-3" /></button>
-                                <button type="button" onClick={() => insertMarkdown("code")} className="p-1.5 hover:bg-white/10 rounded text-slate-400"><Code className="w-3 h-3" /></button>
-                                <button type="button" onClick={() => insertMarkdown("list")} className="p-1.5 hover:bg-white/10 rounded text-slate-400"><List className="w-3 h-3" /></button>
-                                <div className="w-px h-3 bg-white/10 mx-1" />
+                                <button type="button" onClick={() => insertMarkdown("bold")} className="p-1.5 hover:bg-slate-200 dark:hover:bg-white/10 rounded text-slate-600 dark:text-slate-400"><Bold className="w-3 h-3" /></button>
+                                <button type="button" onClick={() => insertMarkdown("italic")} className="p-1.5 hover:bg-slate-200 dark:hover:bg-white/10 rounded text-slate-600 dark:text-slate-400"><Italic className="w-3 h-3" /></button>
+                                <button type="button" onClick={() => insertMarkdown("code")} className="p-1.5 hover:bg-slate-200 dark:hover:bg-white/10 rounded text-slate-600 dark:text-slate-400"><Code className="w-3 h-3" /></button>
+                                <button type="button" onClick={() => insertMarkdown("list")} className="p-1.5 hover:bg-slate-200 dark:hover:bg-white/10 rounded text-slate-600 dark:text-slate-400"><List className="w-3 h-3" /></button>
+                                <div className="w-px h-3 bg-slate-200 dark:bg-white/10 mx-1" />
                                 <button 
                                     type="button"
                                     onClick={() => setIsPreviewMode(!isPreviewMode)} 
@@ -311,31 +335,37 @@ export default function AskDoubt({ defaultSubject = "", isOpen, onClose, onSucce
                             </div>
                         </div>
                         {isPreviewMode ? (
-                            <div className="w-full h-32 bg-white/5 border border-white/10 rounded-2xl p-4 text-white text-sm overflow-y-auto">
+                            <div className="w-full h-32 bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl p-4 text-slate-900 dark:text-white text-sm overflow-y-auto">
                                 <MarkdownRenderer content={content || "*Nothing to preview*"} />
                             </div>
                         ) : (
-                            <textarea
-                                ref={contentTextareaRef}
-                                value={content}
-                                onChange={(e) => setContent(e.target.value)}
-                                onKeyDown={(e) => {
-                                    if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
-                                        e.preventDefault();
-                                        if (content.trim() || imageUrl) {
-                                            handleSubmit(e as any);
+                            <>
+                                <textarea
+                                    ref={contentTextareaRef}
+                                    value={content}
+                                    onChange={(e) => setContent(e.target.value)}
+                                    onKeyDown={(e) => {
+                                        if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+                                            e.preventDefault();
+                                            if (!isOverLimit && (content.trim() || imageUrl)) {
+                                                handleSubmit(e as any);
+                                            }
                                         }
-                                    }
-                                }}
-                                placeholder="Type your question here... (Markdown supported)"
-                                className="w-full h-32 bg-white/5 border border-white/10 rounded-2xl p-4 text-white placeholder:text-slate-600 focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/20 transition-all resize-none"
-                            />
+                                    }}
+                                    maxLength={MAX_CHARS}
+                                    placeholder="Type your question here... (Markdown supported)"
+                                    className={`w-full h-32 bg-slate-100 dark:bg-white/5 border rounded-2xl p-4 text-slate-900 dark:text-white placeholder:text-slate-600 focus:outline-none focus:ring-1 transition-all resize-none ${isOverLimit ? 'border-red-500/50 focus:border-red-500/50 focus:ring-red-500/20' : 'border-slate-200 dark:border-white/10 focus:border-blue-500/50 focus:ring-blue-500/20'}`}
+                                />
+                                <p className={`text-xs font-semibold text-right mt-1 transition-colors ${charCountColor}`}>
+                                    {charCount}/{MAX_CHARS}
+                                </p>
+                            </>
                         )}
                     </div>
 
                     <div className="space-y-3">
                         <div className="flex items-center justify-between gap-3 px-1">
-                            <label className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-500">Tags</label>
+                            <label className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-500 dark:text-slate-500">Tags</label>
                             <button
                                 type="button"
                                 onClick={addSuggestedTags}
@@ -345,8 +375,8 @@ export default function AskDoubt({ defaultSubject = "", isOpen, onClose, onSucce
                                 <Sparkles className="w-3 h-3" /> Suggest
                             </button>
                         </div>
-                        <div className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-2xl px-4 py-3 focus-within:border-blue-500/50">
-                            <Tags className="w-4 h-4 text-slate-500" />
+                        <div className="flex items-center gap-2 bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl px-4 py-3 focus-within:border-blue-500/50">
+                            <Tags className="w-4 h-4 text-slate-500 dark:text-slate-500" />
                             <input
                                 type="text"
                                 value={tagDraft}
@@ -358,12 +388,12 @@ export default function AskDoubt({ defaultSubject = "", isOpen, onClose, onSucce
                                     }
                                 }}
                                 placeholder="Add a tag and press Enter"
-                                className="flex-1 bg-transparent text-sm text-white placeholder:text-slate-600 focus:outline-none"
+                                className="flex-1 bg-transparent text-sm text-slate-900 dark:text-white placeholder:text-slate-600 focus:outline-none"
                             />
                             <button
                                 type="button"
                                 onClick={() => addTag(tagDraft)}
-                                className="text-[9px] font-black uppercase tracking-widest text-slate-400 hover:text-white"
+                                className="text-[9px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
                             >
                                 Add
                             </button>
@@ -387,8 +417,8 @@ export default function AskDoubt({ defaultSubject = "", isOpen, onClose, onSucce
 
                     <div className="space-y-2">
                         <div className="flex items-center justify-between px-1">
-                            <label className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-500">Attach Visual or PDF (Max 5MB)</label>
-                            <span className="text-[9px] text-slate-500 font-bold uppercase tracking-widest">PNG, JPG, GIF, WEBP, PDF</span>
+                            <label className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-500 dark:text-slate-500">Attach Visual or PDF (Max 5MB)</label>
+                            <span className="text-[9px] text-slate-500 dark:text-slate-500 font-bold uppercase tracking-widest">PNG, JPG, GIF, WEBP, PDF</span>
                         </div>
                         <div 
                             className="relative group"
@@ -402,9 +432,7 @@ export default function AskDoubt({ defaultSubject = "", isOpen, onClose, onSucce
                                 accept="image/png,image/jpeg,image/gif,image/webp,application/pdf"
                                 className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
                             />
-                            <div className={`w-full py-8 border-2 border-dashed rounded-2xl flex flex-col items-center justify-center gap-3 transition-all ${
-                                isDragging ? 'bg-blue-500/10 border-blue-500/50 scale-[0.99]' : 'bg-white/[0.02] border-white/10 group-hover:bg-white/[0.05] group-hover:border-blue-500/30'
-                            }`}>
+                            <div className={`w-full py-8 border-2 border-dashed rounded-2xl flex flex-col items-center justify-center gap-3 transition-all ${ isDragging ? 'bg-blue-500/10 border-blue-500/50 scale-[0.99]' : 'bg-white/[0.02] border-white/10 group-hover:bg-white/[0.05] group-hover:border-blue-500/30' }`}>
                                 {fileName ? (
                                     imageUrl.startsWith("data:application/pdf") ? (
                                         <div className="flex flex-col items-center gap-2 px-6 text-center z-20">
@@ -412,30 +440,30 @@ export default function AskDoubt({ defaultSubject = "", isOpen, onClose, onSucce
                                                 <FileText className="w-8 h-8 text-red-500" />
                                             </div>
                                             <div>
-                                                <p className="text-sm text-white font-bold max-w-xs truncate">{fileName}</p>
-                                                {fileSize && <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">PDF Document • {fileSize} MB</p>}
+                                                <p className="text-sm text-slate-900 dark:text-white font-bold max-w-xs truncate">{fileName}</p>
+                                                {fileSize && <p className="text-[10px] text-slate-600 dark:text-slate-400 font-bold uppercase tracking-widest mt-0.5">PDF Document • {fileSize} MB</p>}
                                             </div>
                                             <button 
                                                 type="button"
                                                 onClick={(e) => { e.stopPropagation(); setFileName(""); setImageUrl(""); setFileSize(""); }}
-                                                className="mt-2 text-[10px] bg-red-500/20 hover:bg-red-500 text-red-400 hover:text-white px-4 py-1.5 rounded-xl font-black uppercase tracking-widest transition-all z-20"
+                                                className="mt-2 text-[10px] bg-red-500/20 hover:bg-red-500 text-red-400 hover:text-slate-900 dark:hover:text-white px-4 py-1.5 rounded-xl font-black uppercase tracking-widest transition-all z-20"
                                             >
                                                 Remove Attachment
                                             </button>
                                         </div>
                                     ) : (
                                         <div className="flex flex-col items-center gap-3 px-6 text-center z-20">
-                                            <div className="relative max-h-40 rounded-xl overflow-hidden border border-white/10 shadow-xl bg-slate-950 animate-in zoom-in-95">
+                                            <div className="relative max-h-40 rounded-xl overflow-hidden border border-slate-200 dark:border-white/10 shadow-xl bg-white dark:bg-slate-950 animate-in zoom-in-95">
                                                 <img src={imageUrl} alt="Preview" className="max-h-40 object-contain" />
                                             </div>
                                             <div>
-                                                <p className="text-xs text-white font-bold max-w-xs truncate">{fileName}</p>
-                                                {fileSize && <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">Visual Image • {fileSize} MB</p>}
+                                                <p className="text-xs text-slate-900 dark:text-white font-bold max-w-xs truncate">{fileName}</p>
+                                                {fileSize && <p className="text-[10px] text-slate-600 dark:text-slate-400 font-bold uppercase tracking-widest mt-0.5">Visual Image • {fileSize} MB</p>}
                                             </div>
                                             <button 
                                                 type="button"
                                                 onClick={(e) => { e.stopPropagation(); setFileName(""); setImageUrl(""); setFileSize(""); }}
-                                                className="text-[10px] bg-red-500/20 hover:bg-red-500 text-red-400 hover:text-white px-4 py-1 rounded-xl font-black uppercase tracking-widest transition-all z-20"
+                                                className="text-[10px] bg-red-500/20 hover:bg-red-500 text-red-400 hover:text-slate-900 dark:hover:text-white px-4 py-1 rounded-xl font-black uppercase tracking-widest transition-all z-20"
                                             >
                                                 Remove Attachment
                                             </button>
@@ -443,16 +471,14 @@ export default function AskDoubt({ defaultSubject = "", isOpen, onClose, onSucce
                                     )
                                 ) : (
                                     <>
-                                        <div className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all ${
-                                            isDragging ? 'bg-blue-600/20 text-blue-400 scale-110' : 'bg-slate-800 text-slate-500 group-hover:text-blue-400 group-hover:scale-105'
-                                        }`}>
+                                        <div className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all ${ isDragging ? 'bg-blue-600/20 text-blue-400 scale-110' : 'bg-slate-800 text-slate-500 group-hover:text-blue-400 group-hover:scale-105' }`}>
                                             <Upload className="w-7 h-7" />
                                         </div>
                                         <div className="text-center px-4">
-                                            <p className="text-xs text-slate-200 font-bold uppercase tracking-wider">
+                                            <p className="text-xs text-slate-800 dark:text-slate-200 font-bold uppercase tracking-wider">
                                                 {isDragging ? "Drop your file here!" : "Click or Drag File to Upload"}
                                             </p>
-                                            <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-1">
+                                            <p className="text-[10px] text-slate-500 dark:text-slate-500 font-bold uppercase tracking-widest mt-1">
                                                 Images (PNG, JPG, WebP) and PDF Documents up to 5MB
                                             </p>
                                         </div>
@@ -466,13 +492,13 @@ export default function AskDoubt({ defaultSubject = "", isOpen, onClose, onSucce
                         <button
                             type="button"
                             onClick={onClose}
-                            className="flex-1 py-4 bg-white/5 hover:bg-white/10 text-white rounded-2xl font-bold transition-all border border-white/5"
+                            className="flex-1 py-4 bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 text-slate-900 dark:text-white rounded-2xl font-bold transition-all border border-slate-200 dark:border-white/5"
                         >
                             Cancel
                         </button>
                         <button
                             type="submit"
-                            disabled={isSubmitting || (!content.trim() && !imageUrl) || !subject.trim()}
+                            disabled={isSubmitting || (!content.trim() && !imageUrl) || !subject.trim() || isOverLimit}
                             className="flex-[2] py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-bold transition-all shadow-lg shadow-blue-600/20 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                         >
                             {isSubmitting && <Loader2 className="w-4 h-4 animate-spin" />}
