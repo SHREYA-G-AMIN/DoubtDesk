@@ -16,7 +16,19 @@ const groq = new Groq({
 });
 
 function splitTextIntoChunks(text: string, maxLen: number = 200): string[] {
-    const words = text.split(/\s+/);
+    const rawWords = text.split(/\s+/);
+    const words: string[] = [];
+    for (const word of rawWords) {
+        if (word.length > maxLen) {
+            // Split overlong word into <=maxLen pieces
+            for (let i = 0; i < word.length; i += maxLen) {
+                words.push(word.slice(i, i + maxLen));
+            }
+        } else {
+            words.push(word);
+        }
+    }
+
     const chunks: string[] = [];
     let currentChunk = "";
 
@@ -55,15 +67,15 @@ function getGoogleTtsUrls(text: string, lang: string = 'en', speed: number = 1):
 }
 
 export async function POST(req: Request) {
+    const user = await currentUser();
+    if (!user) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     let lockKey = null;
     try {
         const { errorResponse, data } = await parseAndValidateRequest(req, generateVideoSchema);
         if (errorResponse) return errorResponse;
-
-        const user = await currentUser();
-        if (!user) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-        }
         
         lockKey = `video_lock:${user.id}`;
         const lockAcquired = await redisClient.setnx(lockKey, "1");

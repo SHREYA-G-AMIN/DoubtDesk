@@ -20,6 +20,7 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
+
         // Check if reply exists
         const [reply] = await db.select().from(repliesTable).where(eq(repliesTable.id, replyId)).limit(1);
         if (!reply) {
