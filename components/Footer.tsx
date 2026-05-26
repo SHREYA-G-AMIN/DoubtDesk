@@ -191,7 +191,7 @@ export default function Footer() {
         <div className="pt-8 flex flex-col md:flex-row items-center justify-between gap-6">
           <div className="flex items-center gap-4">
             {socialLinks.map((social) => (
-              <Link
+              <a
                 key={social.label}
                 href={social.href}
                 target="_blank"
@@ -200,7 +200,7 @@ export default function Footer() {
                 className={`group p-3 rounded-xl border border-slate-300 dark:border-white/10 bg-slate-200/80 dark:bg-white/5 text-slate-700 dark:text-slate-400 backdrop-blur-sm transition-all duration-300 hover:bg-slate-300/80 dark:hover:bg-white/10 hover:border-slate-400 dark:hover:border-white/20 hover:-translate-y-1 hover:scale-110 ${social.hoverColor}`}
               >
                 <social.icon className="w-4 h-4 transition-transform duration-300 group-hover:scale-110" />
-              </Link>
+              </a>
             ))}
           </div>
 
