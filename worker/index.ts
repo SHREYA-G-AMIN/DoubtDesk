@@ -64,7 +64,7 @@ async function syncOfflineQueue() {
             client.postMessage({ type: "SYNC_AUTH_REQUIRED", itemId: item.id });
           }
           break;
-        } else if (response.status >= 400 && response.status < 500) {
+        } else if (response.status === 400 || response.status === 422) {
           // Remove client validation errors
           await removeFromQueue(db, item.id);
         } else {

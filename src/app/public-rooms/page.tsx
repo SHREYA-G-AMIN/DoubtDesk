@@ -38,9 +38,13 @@ export default function PublicRoomsPage() {
 
     useEffect(() => {
         const loadPendingDoubts = async () => {
-            const { getPendingDoubts } = await import("@/lib/offline/syncQueue");
-            const pending = await getPendingDoubts();
-            setPendingDoubts(pending);
+            try {
+                const { getPendingDoubts } = await import("@/lib/offline/syncQueue");
+                const pending = await getPendingDoubts();
+                setPendingDoubts(pending);
+            } catch (err) {
+                console.error("Failed to load pending doubts:", err);
+            }
         };
 
         loadPendingDoubts();
@@ -114,7 +118,50 @@ export default function PublicRoomsPage() {
     });
 
     const doubts = data ? [].concat(...data) : [];
-    const allDoubts = [...pendingDoubts, ...doubts];
+    
+    // Apply local filters to pending doubts so they match the active view
+    const matchingPendingDoubts = pendingDoubts.filter((d) => {
+        // 1. Subject filter
+        if (filter !== "All") {
+            if (filter === "Bookmarked") {
+                // Pending doubts are not synced yet, so they cannot be bookmarked
+                return false;
+            } else if (filter === "Others") {
+                const knownSubjects = ["Math", "Science", "Physics", "Chemistry", "Programming"];
+                const isOtherSubject = !knownSubjects.includes(d.subject);
+                if (appliedCustomFilter) {
+                    return d.subject?.toLowerCase() === appliedCustomFilter.toLowerCase();
+                }
+                return isOtherSubject;
+            } else {
+                return d.subject?.toLowerCase() === filter.toLowerCase();
+            }
+        }
+        
+        // 2. Search query filter
+        if (searchQuery) {
+            const query = searchQuery.toLowerCase();
+            const contentMatch = d.content?.toLowerCase().includes(query);
+            const subjectMatch = d.subject?.toLowerCase().includes(query);
+            const userNameMatch = d.userName?.toLowerCase().includes(query);
+            if (!contentMatch && !subjectMatch && !userNameMatch) {
+                return false;
+            }
+        }
+        
+        // 3. Tag filter
+        if (appliedTagFilter.trim()) {
+            const normalizedTag = appliedTagFilter.trim().toLowerCase();
+            const hasMatchingTag = d.tags?.some((t: any) => t.name?.toLowerCase() === normalizedTag);
+            if (!hasMatchingTag) {
+                return false;
+            }
+        }
+        
+        return true;
+    });
+
+    const allDoubts = [...matchingPendingDoubts, ...doubts];
     const filteredDoubts = (allDoubts as any[]).filter((d) => {
         if (statusFilter === 'all') return true;
         if (statusFilter === 'unsolved') return d.isSolved === 'unsolved' || !d.isSolved;

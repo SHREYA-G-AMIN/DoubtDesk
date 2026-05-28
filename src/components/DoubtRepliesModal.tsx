@@ -673,7 +673,7 @@ export default function DoubtRepliesModal({ doubt, isOpen, onClose, onReplyChang
                             <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
                             <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-500">Loading Thread...</p>
                         </div>
-                    ) : replies.length === 0 ? (
+                    ) : (replies.length === 0 && pendingReplies.length === 0) ? (
                         <div className="h-full flex flex-col items-center justify-center text-center opacity-40">
                             <div className="w-20 h-20 bg-slate-100 dark:bg-white/5 rounded-full flex items-center justify-center mb-4">
                                 <MessageSquare className="w-10 h-10 text-slate-500 dark:text-slate-500" />

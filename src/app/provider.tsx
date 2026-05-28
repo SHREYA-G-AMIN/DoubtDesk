@@ -105,9 +105,13 @@ export function Provider({ children }: { children: React.ReactNode }) {
 
     useEffect(() => {
         // Trigger initial sync when app loads
-        import("@/lib/offline/syncQueue").then(({ syncOfflineQueue }) => {
-            syncOfflineQueue();
-        });
+        import("@/lib/offline/syncQueue")
+            .then(({ syncOfflineQueue }) => {
+                syncOfflineQueue();
+            })
+            .catch((err) => {
+                console.error("Failed to load syncQueue for offline synchronization:", err);
+            });
 
         const handleAuthRequired = () => {
             toast.error("Your session has expired. Please sign in again to sync your offline replies/doubts.", {

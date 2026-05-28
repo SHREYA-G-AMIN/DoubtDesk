@@ -258,6 +258,15 @@ const doubtType = type ?? 'community';
         // 2. Auto-detect sub-topic using AI
         const subTopic = await categorizeDoubt(content || "", subject, imageUrl);
 
+        let parsedCreatedAt: Date | undefined = undefined;
+        if (data.createdAt) {
+            const d = new Date(data.createdAt);
+            if (isNaN(d.getTime())) {
+                return NextResponse.json({ error: "Invalid createdAt date format" }, { status: 400 });
+            }
+            parsedCreatedAt = d;
+        }
+
         const [newDoubt] = await db.insert(doubtsTable).values({
             userName,
             userEmail: email,
@@ -267,7 +276,7 @@ const doubtType = type ?? 'community';
             imageUrl,
             classroomId: parsedClassroomId,
             type,
-            createdAt: data.createdAt ? new Date(data.createdAt) : undefined
+            createdAt: parsedCreatedAt
         }).returning();
 
         if (parsedClassroomId) {

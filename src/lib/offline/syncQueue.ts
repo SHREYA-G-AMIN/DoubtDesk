@@ -96,39 +96,40 @@ export async function syncOfflineQueue(): Promise<void> {
     if (isSyncing) return;
     if (typeof navigator !== "undefined" && !navigator.onLine) return;
     
-    const queue = await getQueue();
-    if (queue.length === 0) return;
-    
     isSyncing = true;
-    
-    for (const item of queue) {
-        try {
-            const response = await fetch(item.url, {
-                method: item.method,
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(item.payload)
-            });
-            
-            if (response.ok) {
-                await removeFromQueue(item.id);
-            } else if (response.status === 401) {
-                if (typeof window !== "undefined") {
-                    window.dispatchEvent(new CustomEvent("sync-auth-required", { detail: item }));
+    try {
+        const queue = await getQueue();
+        if (queue.length === 0) return;
+        
+        for (const item of queue) {
+            try {
+                const response = await fetch(item.url, {
+                    method: item.method,
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(item.payload)
+                });
+                
+                if (response.ok) {
+                    await removeFromQueue(item.id);
+                } else if (response.status === 401) {
+                    if (typeof window !== "undefined") {
+                        window.dispatchEvent(new CustomEvent("sync-auth-required", { detail: item }));
+                    }
+                    break; // Stop sync queue to prevent dropping/failing subsequent items due to auth
+                } else if (response.status === 400 || response.status === 422) {
+                    // Remove client validation errors that will never succeed
+                    console.error(`Removing invalid sync item ${item.id} (Status: ${response.status})`);
+                    await removeFromQueue(item.id);
+                } else {
+                    break; // Transient or server errors, stop and retry later
                 }
-                break; // Stop sync queue to prevent dropping/failing subsequent items due to auth
-            } else if (response.status >= 400 && response.status < 500) {
-                // Remove client validation errors that will never succeed
-                console.error(`Removing invalid sync item ${item.id} (Status: ${response.status})`);
-                await removeFromQueue(item.id);
-            } else {
-                break; // Server errors, stop and retry later
+            } catch (error) {
+                break; // Network errors, stop and retry later
             }
-        } catch (error) {
-            break; // Network errors, stop and retry later
         }
+    } finally {
+        isSyncing = false;
     }
-    
-    isSyncing = false;
 }
 
 export async function getPendingDoubts(): Promise<any[]> {
