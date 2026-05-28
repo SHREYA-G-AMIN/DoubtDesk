@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { X, Loader2, Upload, File, Eye, EyeOff, Bold, Italic, Code, List, Tags, Sparkles, FileText, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import MarkdownRenderer from "./MarkdownRenderer";
+import { OFFLINE_DOUBT_QUEUED } from "@/lib/copy-constants";
 
 interface AskDoubtProps {
     defaultSubject?: string;
@@ -259,7 +260,7 @@ export default function AskDoubt({ defaultSubject = "", isOpen, onClose, onSucce
                     }
                 }
 
-                toast.success("You are offline. Your doubt has been saved and will sync automatically when your connection returns.", {
+                toast.success(OFFLINE_DOUBT_QUEUED, {
                     id: "doubt-offline-queued",
                 });
                 onSuccess();

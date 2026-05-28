@@ -1,10 +1,11 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { X, Send, CheckCircle, MessageSquare, Loader2, Upload, File, ZoomIn, MoreVertical, Pencil, Trash2, PlusCircle, Eye, EyeOff, Bold, Italic, Code, List, ThumbsUp, FileText, ExternalLink } from "lucide-react";
+import { X, Send, CheckCircle, MessageSquare, Loader2, Upload, File, ZoomIn, MoreVertical, Pencil, Trash2, PlusCircle, Eye, EyeOff, Bold, Italic, Code, List, ThumbsUp, FileText, ExternalLink, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import MarkdownRenderer from "./MarkdownRenderer";
 import { DeleteConfirmationDialog } from "./DeleteConfirmationDialog";
+import { OFFLINE_REPLY_QUEUED } from "@/lib/copy-constants";
 interface Reply {
     id: number;
     doubtId: number;
@@ -28,6 +29,8 @@ interface DoubtRepliesModalProps {
 export default function DoubtRepliesModal({ doubt, isOpen, onClose, onReplyChange, isTeacher = false }: DoubtRepliesModalProps) {
     const [replies, setReplies] = useState<Reply[]>([]);
     const [pendingReplies, setPendingReplies] = useState<any[]>([]);
+    const [pendingRepliesError, setPendingRepliesError] = useState<any>(null);
+    const [isPendingRepliesLoading, setIsPendingRepliesLoading] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
     const [chatText, setChatText] = useState("");
     const [isPosting, setIsPosting] = useState(false);
@@ -68,9 +71,18 @@ export default function DoubtRepliesModal({ doubt, isOpen, onClose, onReplyChang
 
     useEffect(() => {
         const loadPendingReplies = async () => {
-            const { getPendingReplies } = await import("@/lib/offline/syncQueue");
-            const pending = await getPendingReplies(doubt.id);
-            setPendingReplies(pending);
+            setIsPendingRepliesLoading(true);
+            setPendingRepliesError(null);
+            try {
+                const { getPendingReplies } = await import("@/lib/offline/syncQueue");
+                const pending = await getPendingReplies(doubt.id);
+                setPendingReplies(pending);
+            } catch (err) {
+                console.error("Failed to load pending replies:", err);
+                setPendingRepliesError(err);
+            } finally {
+                setIsPendingRepliesLoading(false);
+            }
         };
 
         if (isOpen) {
@@ -129,7 +141,8 @@ export default function DoubtRepliesModal({ doubt, isOpen, onClose, onReplyChang
                     userName,
                     type,
                     content,
-                    imageUrl
+                    imageUrl,
+                    createdAt: new Date().toISOString()
                 };
                 const { addToQueue } = await import("@/lib/offline/syncQueue");
                 await addToQueue("/api/replies", "POST", payload);
@@ -143,7 +156,7 @@ export default function DoubtRepliesModal({ doubt, isOpen, onClose, onReplyChang
                     }
                 }
 
-                toast.success("You are offline. Your reply has been saved and will sync automatically when your connection returns.", {
+                toast.success(OFFLINE_REPLY_QUEUED, {
                     id: `reply-offline-queued-${type}`,
                 });
 
@@ -673,6 +686,12 @@ export default function DoubtRepliesModal({ doubt, isOpen, onClose, onReplyChang
                             <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
                             <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-500">Loading Thread...</p>
                         </div>
+                    ) : pendingRepliesError ? (
+                        <div className="h-full flex flex-col items-center justify-center text-center opacity-50">
+                            <AlertTriangle className="w-10 h-10 text-red-500 mb-4 animate-bounce" />
+                            <p className="text-sm font-bold text-red-500">Failed to load offline replies.</p>
+                            <p className="text-[10px] uppercase font-black tracking-widest text-slate-500 mt-2">Please refresh or check connection.</p>
+                        </div>
                     ) : (replies.length === 0 && pendingReplies.length === 0) ? (
                         <div className="h-full flex flex-col items-center justify-center text-center opacity-40">
                             <div className="w-20 h-20 bg-slate-100 dark:bg-white/5 rounded-full flex items-center justify-center mb-4">
@@ -684,7 +703,19 @@ export default function DoubtRepliesModal({ doubt, isOpen, onClose, onReplyChang
                     ) : (
                         <div className="space-y-6">
                             {(() => {
-                                const allReplies = [...replies, ...pendingReplies];
+                                const allReplies = [...replies, ...pendingReplies].sort((a, b) => {
+                                    const timeA = new Date(a.createdAt).getTime() || 0;
+                                    const timeB = new Date(b.createdAt).getTime() || 0;
+                                    if (timeA !== timeB) {
+                                        return timeA - timeB;
+                                    }
+                                    const isPendingA = a.isPendingSync ? 1 : 0;
+                                    const isPendingB = b.isPendingSync ? 1 : 0;
+                                    if (isPendingA !== isPendingB) {
+                                        return isPendingA - isPendingB;
+                                    }
+                                    return String(a.id).localeCompare(String(b.id));
+                                });
                                 const filteredReplies = activeTab === 'all'
                                     ? allReplies
                                     : activeTab === 'chat'
