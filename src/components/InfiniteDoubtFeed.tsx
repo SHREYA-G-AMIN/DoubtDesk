@@ -5,7 +5,15 @@ import DoubtCard from "@/components/DoubtCard";
 import useSWRInfinite from "swr/infinite";
 import ScrollToTopButton from "./ScrollToTopButton";
 
-const fetcher = (url: string) => fetch(url).then((res) => res.json());
+const fetcher = async (url: string) => {
+    const res = await fetch(url);
+
+    if (!res.ok) {
+        throw new Error(`Failed to load doubts: ${res.status}`);
+    }
+
+    return res.json();
+};
 
 interface InfiniteDoubtFeedProps {
     classroomId?: number;
@@ -22,6 +30,22 @@ interface InfiniteDoubtFeedProps {
 
 const PAGE_SIZE = 10;
 
+const normalizePage = (page: any) => {
+    if (Array.isArray(page)) {
+        return {
+            doubts: page,
+            hasMore: page.length === PAGE_SIZE,
+            error: undefined,
+        };
+    }
+
+    return {
+        doubts: page?.doubts ?? [],
+        hasMore: Boolean(page?.pagination?.hasMore),
+        error: page?.error,
+    };
+};
+
 export default function InfiniteDoubtFeed({
     classroomId,
     subject,
@@ -35,7 +59,7 @@ export default function InfiniteDoubtFeed({
     emptyActionLabel
 }: InfiniteDoubtFeedProps) {
     const getKey = (pageIndex: number, previousPageData: any) => {
-        if (previousPageData && !previousPageData.pagination?.hasMore) return null;
+        if (previousPageData && !normalizePage(previousPageData).hasMore) return null;
 
 
         const params = new URLSearchParams();
@@ -59,9 +83,10 @@ export default function InfiniteDoubtFeed({
         revalidateFirstPage: false
     });
 
-    const doubts = data ? data.flatMap((page) => page?.doubts ?? []) : [];
-    const isEmpty = data?.[0]?.doubts?.length === 0 || data?.[0]?.error !== undefined;
-    const isReachingEnd = isEmpty || (data && !data[data.length - 1]?.pagination?.hasMore);
+    const pages = data?.map(normalizePage);
+    const doubts = pages ? pages.flatMap((page) => page.doubts) : [];
+    const isEmpty = pages?.[0]?.doubts.length === 0 || pages?.[0]?.error !== undefined;
+    const isReachingEnd = isEmpty || (pages && !pages[pages.length - 1]?.hasMore);
     const isLoadingMore = isLoading || (size > 0 && data && typeof data[size - 1] === "undefined");
 
     if (isLoading && doubts.length === 0) {
