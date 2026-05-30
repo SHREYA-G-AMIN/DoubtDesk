@@ -1,13 +1,34 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { SignUp } from "@clerk/nextjs";
 import { useTheme } from "next-themes";
 import { dark } from "@clerk/themes";
 import { ArrowLeft } from "lucide-react";
+import { BACK_TO_HOME_LABEL } from "@/lib/constants";
 
+/**
+ * Renders the Sign Up page for user authentication.
+ * 
+ * This component provides the registration interface using Clerk's `<SignUp />` component.
+ * It includes a theme-aware background, decorative gradients, and waits for client-side
+ * hydration to prevent theme flickering for dark mode users.
+ * 
+ * @returns {JSX.Element | null} The rendered sign-up page or null before hydration.
+ */
 export default function SignUpPage() {
   const { resolvedTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted) {
+    return null;
+  }
+
   const isDark = resolvedTheme === "dark";
 
   return (
@@ -21,8 +42,8 @@ export default function SignUpPage() {
           href="/"
           className="inline-flex items-center gap-2 text-sm font-medium text-slate-500 hover:text-slate-900 dark:text-zinc-400 dark:hover:text-white transition-colors duration-200 self-start ml-2 group"
         >
-          <ArrowLeft className="w-4 h-4 transition-transform duration-200 group-hover:-translate-x-1" />
-          Back to Home
+          <ArrowLeft className="w-4 h-4 transition-transform duration-200 group-hover:-translate-x-1" aria-hidden={true} focusable={false} />
+          {BACK_TO_HOME_LABEL}
         </Link>
 
         {/* Auth Interface */}
