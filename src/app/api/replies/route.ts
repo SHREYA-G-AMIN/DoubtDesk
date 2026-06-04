@@ -10,6 +10,7 @@ import { parseAndValidateRequest } from "@/lib/validations/validate";
 import { createReplySchema } from "@/lib/validations/reply";
 import { DOUBT_STATUS } from "@/lib/doubtStatus";
 import { createReplyNotification } from "@/lib/notifications/service";
+import { canTeach } from "@/lib/auth/membership-guard";
 
 export async function GET(req: Request) {
     try {
@@ -132,12 +133,25 @@ export async function POST(req: Request) {
             }
         }
 
-        if (doubt.type === 'teacher') {
-            const [room] = await db.select().from(classroomsTable).where(eq(classroomsTable.id, doubt.classroomId!));
-            if (room && email && room.teacherEmail !== email) {
-                return NextResponse.json({ error: "Only the teacher can reply to this doubt" }, { status: 403 });
+        if (doubt.type === "teacher") {
+            const [membership] = await db
+            .select()
+            .from(membershipsTable)
+            .where(
+                and(
+                    eq(membershipsTable.userEmail, email),
+                    eq(membershipsTable.classroomId, doubt.classroomId!)
+                )
+            );
+
+            if (!membership || !canTeach(membership.role)) {
+                return NextResponse.json(
+                    { error: "Insufficient permissions to reply to this doubt" },
+                    { status: 403 }
+                );
             }
         }
+            
 
         const newReply = await db.insert(repliesTable).values({
             doubtId: doubtId,
